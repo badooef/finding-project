@@ -34,7 +34,6 @@ public class PostThumbServiceImpl extends ServiceImpl<PostThumbMapper, PostThumb
      * @return
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public int doThumb(long postId, User loginUser) {
         // 帖子是否存在
         Post post = postService.getById(postId);
@@ -43,41 +42,54 @@ public class PostThumbServiceImpl extends ServiceImpl<PostThumbMapper, PostThumb
         }
         // 是否已点赞
         long userId = loginUser.getId();
+        // 每个用户串行点赞
+        // 锁必须要包裹住事务方法
+        synchronized (String.valueOf(userId).intern()) {
+            return doThumbInner(userId, postId);
+        }
+    }
+
+    /**
+     * 封装了事务的方法
+     *
+     * @param userId
+     * @param postId
+     * @return
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public int doThumbInner(long userId, long postId) {
         PostThumb postThumb = new PostThumb();
         postThumb.setUserId(userId);
         postThumb.setPostId(postId);
         QueryWrapper<PostThumb> postThumbQueryWrapper = new QueryWrapper<>(postThumb);
+        long count = this.count(postThumbQueryWrapper);
         boolean result;
-        // 每个用户串行点赞
-        synchronized (String.valueOf(userId).intern()) {
-            long count = this.count(postThumbQueryWrapper);
-            // 已点赞
-            if (count > 0) {
-                result = this.remove(postThumbQueryWrapper);
-                if (result) {
-                    // 帖子点赞数 - 1
-                    result = postService.update()
-                            .eq("id", postId)
-                            .gt("thumbNum", 0)
-                            .setSql("thumbNum = thumbNum - 1")
-                            .update();
-                    return result ? -1 : 0;
-                } else {
-                    throw new BusinessException(ErrorCode.SYSTEM_ERROR);
-                }
+        // 已点赞
+        if (count > 0) {
+            result = this.remove(postThumbQueryWrapper);
+            if (result) {
+                // 帖子点赞数 - 1
+                result = postService.update()
+                        .eq("id", postId)
+                        .gt("thumbNum", 0)
+                        .setSql("thumbNum = thumbNum - 1")
+                        .update();
+                return result ? -1 : 0;
             } else {
-                // 未点赞
-                result = this.save(postThumb);
-                if (result) {
-                    // 帖子点赞数 + 1
-                    result = postService.update()
-                            .eq("id", postId)
-                            .setSql("thumbNum = thumbNum + 1")
-                            .update();
-                    return result ? 1 : 0;
-                } else {
-                    throw new BusinessException(ErrorCode.SYSTEM_ERROR);
-                }
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+            }
+        } else {
+            // 未点赞
+            result = this.save(postThumb);
+            if (result) {
+                // 帖子点赞数 + 1
+                result = postService.update()
+                        .eq("id", postId)
+                        .setSql("thumbNum = thumbNum + 1")
+                        .update();
+                return result ? 1 : 0;
+            } else {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR);
             }
         }
     }
