@@ -15,7 +15,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/lovefinder
     username: root
-    password: 123456
+    password: w70968254
 server:
   address: 0.0.0.0
   port: 8103

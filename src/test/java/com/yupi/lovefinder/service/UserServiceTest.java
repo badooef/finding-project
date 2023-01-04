@@ -4,6 +4,7 @@ import com.yupi.lovefinder.model.entity.User;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 
@@ -17,6 +18,13 @@ public class UserServiceTest {
 
     @Resource
     private UserService userService;
+
+    @Test
+    public void assaencrypt() {
+        // 2. 加密
+        String encryptPassword = DigestUtils.md5DigestAsHex(("yupi" + 123).getBytes());
+        System.out.println(encryptPassword);
+    }
 
     @Test
     public void testAddUser() {
